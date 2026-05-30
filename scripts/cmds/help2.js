@@ -26,7 +26,7 @@ module.exports = {
     if (!args[0]) {
       // Group commands by category
       const categories = {};
-      let msg = "╭───────❁\n│✨ 𝗙 𝗔 𝗥 𝗛 𝗔 𝗡 𝗛𝗘𝗟𝗣 𝗟𝗜𝗦𝗧 ✨\n╰────────────❁";
+      let msg = "╭───────❁\n│✨ 𝗜 𝗠 𝗥 𝗔 𝗡 𝗛𝗘𝗟𝗣 𝗟𝗜𝗦𝗧 ✨\n╰────────────❁";
 
       for (const [name, value] of commands) {
         if (value.config.role > 1 && role < value.config.role) continue;
