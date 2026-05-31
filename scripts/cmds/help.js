@@ -1,147 +1,202 @@
+const fs = require("fs-extra");
+
 const axios = require("axios");
-const { getPrefix, getStreamFromURL } = global.utils;
-const { commands } = global.GoatBot;
 
-let xfont = null;
-let yfont = null;
-let categoryEmoji = null;
+const path = require("path");
 
-const HELP_GIF = "https://i.imgur.com/gfgCeqI.jpeg";
+const { getPrefix } = global.utils;
 
-async function loadResources() {
-  try {
-    const [x, y, c] = await Promise.all([
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/xfont.json"),
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/yfont.json"),
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/category.json")
-    ]);
-    xfont = x.data;
-    yfont = y.data;
-    categoryEmoji = c.data;
-  } catch (e) {
-    console.error("[HELP] Resource load failed", e);
-    xfont = xfont || {};
-    yfont = yfont || {};
-    categoryEmoji = categoryEmoji || {};
-  }
-}
+const { commands, aliases } = global.GoatBot;
 
-function fontConvert(text, type = "command") {
-  const map = type === "category" ? xfont : yfont;
-  if (!map) return text;
-  return text.split("").map(c => map[c] || c).join("");
-}
-
-function getCategoryEmoji(cat) {
-  return categoryEmoji?.[cat.toLowerCase()] || "🗂️";
-}
-
-function roleText(role) {
-  const roles = { 0: "All Users", 1: "Group Admins", 2: "Bot Admin" };
-  return roles[role] || "Unknown";
-}
-
-function findCommand(name) {
-  name = name.toLowerCase();
-  for (const [, cmd] of commands) {
-    const a = cmd.config?.aliases;
-    if (cmd.config?.name === name) return cmd;
-    if (Array.isArray(a) && a.includes(name)) return cmd;
-    if (typeof a === "string" && a === name) return cmd;
-  }
-  return null;
-}
 
 module.exports = {
-  config: {
-    name: "help",
-    aliases: ["menu"],
-    version: "2.0",
-    author: "MR_FARHAN",
-    role: 0,
-    category: "info",
-    shortDescription: "Show all commands",
-    guide: "{pn} | {pn} <command> | {pn} -c <category>"
-  },
 
-  onStart: async function ({ message, args, event, role }) {
-    if (!xfont || !yfont || !categoryEmoji) await loadResources();
-    const prefix = getPrefix(event.threadID);
-    const input = args.join(" ").trim();
+  config: {
 
-    // Collect categories
-    const categories = {};
-    for (const [name, cmd] of commands) {
-      if (!cmd?.config || cmd.config.role > role) continue;
-      const cat = (cmd.config.category || "UNCATEGORIZED").toUpperCase();
-      if (!categories[cat]) categories[cat] = [];
-      categories[cat].push(name);
-    }
+    name: "help2",
 
-    // If input is "-c <category>"
-    if (args[0] === "-c" && args[1]) {
-      const cat = args[1].toUpperCase();
-      if (!categories[cat])
-        return message.reply(`❌ Category "${cat}" not found`);
+    version: "1.18",
 
-      let msg = `╭─────✰『 ${getCategoryEmoji(cat)} ${fontConvert(cat, "category")} 』\n`;
-      for (const c of categories[cat].sort())
-        msg += `│⚡ ${fontConvert(c)}\n`;
-      msg += `╰────────────✰\n`;
-      msg += `> TOTAL: ${categories[cat].length}\n> PREFIX: ${prefix}`;
-      return message.reply({
-        body: msg,
-        attachment: await getStreamFromURL(HELP_GIF)
-      });
-    }
+    author: "FARHAN",
 
-    // Main menu
-    if (!input) {
-      let msg = `╭───────❁\n│✨ 𝗜 𝗠 𝗥 𝗔 𝗡 𝗛𝗘𝗟𝗣 𝗟𝗜𝗦𝗧 ✨\n╰────────────❁\n`;
-      for (const cat of Object.keys(categories).sort()) {
-        msg += `╭─────✰『 ${getCategoryEmoji(cat)} ${fontConvert(cat, "category")} 』\n`;
-        for (const c of categories[cat].sort())
-          msg += `│⚡ ${fontConvert(c)}\n`;
-        msg += `╰────────────✰\n`;
-      }
-      const total = Object.values(categories).reduce((a, b) => a + b.length, 0);
-      msg += `╭─────✰[🌟 𝐄𝐍𝐉𝐎𝐘 🌟]\n│> 𝗧𝗢𝗧𝗔𝗟 𝗖𝗢𝗠𝗔𝗡𝗗𝗦: [${total}]\n│\n│> 𝗧𝗬𝗣𝗘: [ ${prefix}𝗛𝗘𝗟𝗣 <𝗖𝗢𝗠𝗗> ]\n│\n│> 𝗕𝗘𝗡 𝗜𝗗 [𝗦𝗢𝗥𝗥𝗬.220]\n╰────────────✰\n`;
-      msg += `╭─────✰\n│ 💖 𝗜𝗠𝗥𝗔𝗡-𝗕𝗢𝗧 💖\n╰────────────✰`;
+    countDown: 5,
 
-      return message.reply({
-        body: msg,
-        attachment: await getStreamFromURL(HELP_GIF)
-      });
-    }
+    role: 0,
 
-    // Command info
-    const cmd = findCommand(input);
-    if (!cmd) return message.reply(`❌ Command "${input}" not found`);
-    const c = cmd.config;
-    const aliasText = Array.isArray(c.aliases) ? c.aliases.join(", ") : c.aliases || "None";
-    let usage = "No usage";
-    if (c.guide) {
-      if (typeof c.guide === "string") usage = c.guide;
-      else if (typeof c.guide === "object") usage = c.guide.en || Object.values(c.guide)[0] || "No usage";
-      usage = usage.replace(/{pn}/g, `${prefix}${c.name}`);
-    }
+    shortDescription: { en: "View command usage and list all commands directly" },
 
-    const infoMsg = `
-╭─── COMMAND INFO ───╮
-🔹 Name : ${c.name}
-📂 Category : ${(c.category || "UNCATEGORIZED").toUpperCase()}
-📜 Description : ${c.longDescription || c.shortDescription || "N/A"}
-🔁 Aliases : ${aliasText}
-⚙️ Version : ${c.version || "1.0"}
-🔐 Permission : ${roleText(c.role)}
-⏱️ Cooldown : ${c.countDown || 5}s
-👑 Author : ${c.author || "Unknown"}
-📖 Usage : ${usage}
-╰───────────────────╯`;
+    longDescription: { en: "View command usage and list all commands directly" },
 
-    return message.reply({
-      body: infoMsg,
-      attachment: await getStreamFromURL(HELP_GIF)
-    });
-  }
+    category: "info",
+
+    guide: { en: "{pn} / help cmdName" },
+
+    priority: 1,
+
+  },
+
+
+  onStart: async function ({ message, args, event, threadsData, role }) {
+
+    const { threadID } = event;
+
+    const threadData = await threadsData.get(threadID);
+
+    const prefix = getPrefix(threadID);
+
+
+    if (!args[0]) {
+
+      // Group commands by category
+
+      const categories = {};
+
+      let msg = "╭───────❁\n│✨ 𝐄 𝐌 𝐑 𝐀 𝐍 𝗛𝗘𝗟𝗣 𝗟𝗜𝗦𝗧 ✨\n╰────────────❁";
+
+
+      for (const [name, value] of commands) {
+
+        if (value.config.role > 1 && role < value.config.role) continue;
+
+
+        const category = value.config.category || "Uncategorized";
+
+        categories[category] = categories[category] || { commands: [] };
+
+        categories[category].commands.push(name);
+
+      }
+
+
+      Object.keys(categories).forEach((category) => {
+
+        msg += `\n╭─────✰『  🗂️ ${category.toUpperCase()}  』`;
+
+        const names = categories[category].commands.sort();
+
+        for (let i = 0; i < names.length; i += 3) {
+
+          const cmds = names.slice(i, i + 3).map((item) => `⚡ ${item}`);
+
+          msg += `\n│${cmds.join("   ")}`;
+
+        }
+
+        msg += `\n╰────────────✰`;
+
+      });
+
+
+      const totalCommands = commands.size;
+
+      msg += `\n\n╭─────✰[🌟 𝐄𝐍𝐉𝐎𝐘 🌟]\n│> 𝗧𝗢𝗧𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦: [${totalCommands}]\n│\n│> 𝗧𝗜𝗣𝗘: [ ${prefix}𝗛𝗘𝗟𝗣 <𝗖𝗢𝗠𝗠𝗔𝗡𝗗> ]\n│\n│> 𝗙𝗕.𝗟𝗜𝗡𝗞: [𝗛𝗧𝗧𝗣𝗦://𝗠.𝗠𝗘/𝐄𝐌𝐑𝐀𝐍.𝐁𝐎𝐒𝐒.207]\n╰────────────✰\n`;
+
+      msg += `\n╭─────✰\n│ 💖 𝐈𝐌𝐑𝐀𝐍-𝗕𝗢𝗧 💖\n╰────────────✰`; 
+
+
+      // Random help image
+
+      const helpListImages = [
+
+        "https://files.catbox.moe/uh4lxd.mp4",
+
+        "https://files.catbox.moe/zj5dp9.mp4",
+
+        "https://i.imgur.com/TqS7xxC.jpeg"
+
+      ];
+
+      const helpListImage = helpListImages[Math.floor(Math.random() * helpListImages.length)];
+
+
+      const stream = await axios.get(helpListImage, { responseType: "stream" }).then(res => res.data);
+
+
+      await message.reply({
+
+        body: msg,
+
+        attachment: stream
+
+      });
+
+
+    } else {
+
+      // Specific command info
+
+      const commandName = args[0].toLowerCase();
+
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+
+
+      if (!command) {
+
+        await message.reply(`Command "${commandName}" not found.`);
+
+      } else {
+
+        const configCommand = command.config;
+
+        const roleText = roleTextToString(configCommand.role);
+
+        const author = configCommand.author || "Unknown";
+
+        const longDescription = configCommand.longDescription?.en || "No description";
+
+        const guideBody = configCommand.guide?.en || "No guide available.";
+
+        const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
+
+
+        const response = `
+
+╭───⊙
+
+│ 🔹 Command: ${configCommand.name}
+
+├── INFO
+
+│ 📝 Description: ${longDescription}
+
+│ 👑 Author: ${author}
+
+│ ⚙ Guide: ${usage}
+
+├── USAGE
+
+│ 🔯 Version: ${configCommand.version || "1.0"}
+
+│ ♻ Role: ${roleText}
+
+╰────────────⊙`;
+
+
+        await message.reply(response);
+
+      }
+
+    }
+
+  },
+
 };
+
+
+// Helper function to convert role number to string
+
+function roleTextToString(roleText) {
+
+  switch (roleText) {
+
+    case 0: return "0 (All users)";
+
+    case 1: return "1 (Group administrators)";
+
+    case 2: return "2 (Admin bot)";
+
+    default: return "Unknown role";
+
+  }
+
+        }
